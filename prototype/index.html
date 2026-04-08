@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MFA Demo UI</title>
+  <style>
+    body { font-family: Arial; max-width: 500px; margin: auto; }
+    input, button { margin: 5px 0; padding: 8px; width: 100%; }
+    .hidden { display: none; }
+    img { max-width: 200px; }
+  </style>
+</head>
+<body>
+
+<h2>MFA Authentication Demo</h2>
+
+<!-- REGISTER -->
+<div id="register">
+  <h3>Register</h3>
+  <input id="reg_user" placeholder="Username">
+  <input id="reg_pass" type="password" placeholder="Password">
+  <button onclick="register()">Register</button>
+  <p id="reg_msg"></p>
+</div>
+
+<!-- ENROLL MFA -->
+<div id="enroll" class="hidden">
+  <h3>Enroll MFA</h3>
+  <button onclick="enroll()">Generate QR</button>
+  <p id="enroll_msg"></p>
+  <img id="qr">
+  <p id="secret"></p>
+</div>
+
+<!-- LOGIN -->
+<div id="login">
+  <h3>Login</h3>
+  <input id="login_user" placeholder="Username">
+  <input id="login_pass" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <p id="login_msg"></p>
+</div>
+
+<!-- MFA VERIFY -->
+<div id="mfa" class="hidden">
+  <h3>Enter OTP</h3>
+  <input id="otp" placeholder="6-digit code">
+  <button onclick="verifyMFA()">Verify</button>
+  <p id="mfa_msg"></p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+  <h3>Dashboard</h3>
+  <button onclick="getProfile()">Get Profile</button>
+  <pre id="profile"></pre>
+</div>
+
+<script>
+const BASE = "http://127.0.0.1:8000";
+
+let preAuthToken = "";
+let accessToken = "";
+let refreshToken = "";
+
+// REGISTER
+async function register() {
+  const res = await fetch(BASE + "/auth/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      username: reg_user.value,
+      password: reg_pass.value
+    })
+  });
+
+  const data = await res.json();
+  reg_msg.innerText = JSON.stringify(data, null, 2);
+
+  if (res.status === 201) {
+    document.getElementById("enroll").classList.remove("hidden");
+  }
+}
+
+// ENROLL MFA
+async function enroll() {
+  const res = await fetch(BASE + "/auth/enroll-totp", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      username: reg_user.value,
+      password: reg_pass.value
+    })
+  });
+
+  const data = await res.json();
+
+  enroll_msg.innerText = data.instructions;
+  qr.src = "data:image/png;base64," + data.qr_base64;
+  secret.innerText = "Secret: " + data.secret;
+}
+
+// LOGIN
+async function login() {
+  const res = await fetch(BASE + "/auth/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      username: login_user.value,
+      password: login_pass.value
+    })
+  });
+
+  const data = await res.json();
+  login_msg.innerText = JSON.stringify(data, null, 2);
+
+  if (data.pre_auth_token) {
+    preAuthToken = data.pre_auth_token;
+    document.getElementById("mfa").classList.remove("hidden");
+  }
+}
+
+// VERIFY MFA
+async function verifyMFA() {
+  const res = await fetch(BASE + "/auth/verify-mfa", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      pre_auth_token: preAuthToken,
+      totp_code: otp.value
+    })
+  });
+
+  const data = await res.json();
+  mfa_msg.innerText = JSON.stringify(data, null, 2);
+
+  if (data.access_token) {
+    accessToken = data.access_token;
+    refreshToken = data.refresh_token;
+
+    document.getElementById("dashboard").classList.remove("hidden");
+  }
+}
+
+// PROTECTED ROUTE
+async function getProfile() {
+  const res = await fetch(BASE + "/api/profile", {
+    headers: {
+      "Authorization": "Bearer " + accessToken
+    }
+  });
+
+  const data = await res.json();
+  profile.innerText = JSON.stringify(data, null, 2);
+}
+
+</script>
+
+</body>
+</html>
