@@ -1,0 +1,7 @@
+fastapi
+mangum
+boto3
+pyotp
+qrcode[pil]
+passlib[bcrypt]
+python-jose[cryptography]

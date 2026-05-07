@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Cloud MFA API
+  A serverless FastAPI application using Mangum, DynamoDB, and RS256 JWTs.
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.9
+    Architectures:
+      - x86_64
+
+Resources:
+  # ── DynamoDB Tables ───────────────────────────────────────────────────────────
+  MfaUsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MfaUsersTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+
+  MfaOTPStoreTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MfaOTPStoreTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pre_auth_token
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pre_auth_token
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # ── Lambda Function (Fat Lambda) ─────────────────────────────────────────────
+  FastAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: main.handler
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref MfaUsersTable
+          OTP_TABLE: !Ref MfaOTPStoreTable
+      Policies:
+        # Give Lambda permission to interact with DynamoDB tables
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MfaUsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MfaOTPStoreTable
+        # Give Lambda permission to read the JWT RSA keys from SSM Parameter Store
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/mfa/jwt/*"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
