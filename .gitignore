@@ -1,3 +1,5 @@
 venv/
-__pycache__
-
+prototype/__pycache__/
+cloud_prototype/.aws-sam/build/
+private_key.pem
+public_key.pem

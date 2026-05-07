@@ -51,7 +51,6 @@ def get_parameter(name: str, with_decryption: bool = True) -> str:
         # Fallback to local variables if running locally without SSM
         return os.getenv(name)
 
-# ── Request schemas ───────────────────────────────────────────────────────────
 class Creds(BaseModel):
     username: str
     password: str
@@ -63,7 +62,6 @@ class MFAVerify(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def issue_jwt(username: str, expiry_hours: int = 1) -> str:
     """Issue a signed JWT access token using RS256 private key."""
     # Fetch private key on-demand or use cached global
@@ -138,7 +136,7 @@ def enroll_totp(body: Creds):
     img = qrcode.make(uri)
     buf = io.BytesIO()
     try:
-        img.save(buf, format="PNG")
+        img.save(buf,"PNG")
     except TypeError:
         img.save(buf) # Fallback if using pure python PyPNGImage instead of Pillow
     qr_b64 = base64.b64encode(buf.getvalue()).decode()
