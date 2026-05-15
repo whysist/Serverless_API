@@ -1,5 +1,6 @@
 venv/
 prototype/__pycache__/
 cloud_prototype/.aws-sam/build/
+cloud_prototype/.aws-sam/build.toml
 private_key.pem
 public_key.pem
